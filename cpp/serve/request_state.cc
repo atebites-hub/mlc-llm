@@ -39,7 +39,7 @@ int RequestModelStateNode::GetInputLength() const {
 
 bool RequestModelStateNode::RequireNextTokenBitmask() { return grammar_matcher.has_value(); }
 
-void RequestModelStateNode::GetNextTokenBitmask(DLTensor* bitmask) {
+void RequestModelStateNode::GetNextTokenBitmask(DLNDArray* bitmask) {
   ICHECK(grammar_matcher.has_value());
 
   grammar_matcher->GetNextTokenBitmask(bitmask);

@@ -5,7 +5,7 @@
 #include "data.h"
 
 #include <tvm/ffi/function.h>
-#include <tvm/ffi/reflection/registry.h>
+#include "../serve/tvm_ffi_reflection_compat.h"
 
 #include "model.h"
 
@@ -116,7 +116,7 @@ TVM_FFI_STATIC_INIT_BLOCK() {
 
 /****************** ImageData ******************/
 
-ImageData::ImageData(Tensor image, int embed_size) {
+ImageData::ImageData(NDArray image, int embed_size) {
   ObjectPtr<ImageDataNode> n = tvm::ffi::make_object<ImageDataNode>();
   n->image = std::move(image);
   n->embed_size = embed_size;
@@ -133,7 +133,7 @@ TVM_FFI_STATIC_INIT_BLOCK() {
   namespace refl = tvm::ffi::reflection;
   refl::GlobalDef()
       .def("mlc.serve.ImageData",
-           [](Tensor image, int embed_size) { return ImageData(std::move(image), embed_size); })
+           [](NDArray image, int embed_size) { return ImageData(std::move(image), embed_size); })
       .def("mlc.serve.ImageDataGetImage", [](ImageData data) { return data->image; });
 }
 

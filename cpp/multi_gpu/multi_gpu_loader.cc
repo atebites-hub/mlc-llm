@@ -7,7 +7,7 @@
 #include <tvm/ffi/container/array.h>
 #include <tvm/ffi/function.h>
 #include <tvm/ffi/optional.h>
-#include <tvm/ffi/reflection/registry.h>
+#include "../serve/tvm_ffi_reflection_compat.h"
 #include <tvm/runtime/device_api.h>
 #include <tvm/runtime/disco/builtin.h>
 #include <tvm/runtime/disco/disco_worker.h>
@@ -31,7 +31,7 @@ namespace llm {
 namespace multi_gpu {
 
 using tvm::Device;
-using tvm::runtime::vm::TensorCacheMetadata;
+using tvm::runtime::vm::NDArrayCacheMetadata;
 using namespace tvm::runtime;
 using tvm::ffi::Array;
 using tvm::ffi::Function;
@@ -76,36 +76,36 @@ class PreprocessorPool {
     }
   }
 
-  Tensor Apply(Tensor param, const ModelMetadata::Param& param_info) const {
+  NDArray Apply(NDArray param, const ModelMetadata::Param& param_info) const {
     for (const ModelMetadata::Param::Preproc& preproc : param_info.preprocs) {
       const std::string& func_name = preproc.func_name;
-      Tensor param_in = param;
-      param = Tensor::Empty(preproc.out_shape, preproc.out_dtype, param->device);
+      NDArray param_in = param;
+      param = NDArray::Empty(preproc.out_shape, preproc.out_dtype, param->device);
       ICHECK(preproc_funcs.count(func_name));
-      DLTensor dl_param_in = *param_in.operator->();
-      DLTensor dl_param = *param.operator->();
+      DLNDArray dl_param_in = *param_in.operator->();
+      DLNDArray dl_param = *param.operator->();
       preproc_funcs.at(func_name)(&dl_param_in, &dl_param);
     }
     return param;
   }
 
  private:
-  std::unordered_map<std::string, TypedFunction<void(DLTensor*, DLTensor*)>> preproc_funcs;
+  std::unordered_map<std::string, TypedFunction<void(DLNDArray*, DLNDArray*)>> preproc_funcs;
 };
 
 struct ParamInfo {
-  const TensorCacheMetadata::FileRecord* file;
-  const TensorCacheMetadata::FileRecord::ParamRecord* param;
+  const NDArrayCacheMetadata::FileRecord* file;
+  const NDArrayCacheMetadata::FileRecord::ParamRecord* param;
 };
 
-Tensor RecvFromGlobalWorker0(Device device, const ModelMetadata::Param& param_info) {
+NDArray RecvFromGlobalWorker0(Device device, const ModelMetadata::Param& param_info) {
   Shape shape = param_info.preprocs.empty() ? param_info.shape : param_info.preprocs[0].in_shape;
-  Tensor result = Tensor::Empty(shape, param_info.dtype, device);
+  NDArray result = NDArray::Empty(shape, param_info.dtype, device);
   RecvFromWorker0(result);
   return result;
 }
 
-Tensor BroadcastOrShardAndScatter(Tensor param, const ModelMetadata::Param& param_info,
+NDArray BroadcastOrShardAndScatter(NDArray param, const ModelMetadata::Param& param_info,
                                   int num_shards, const PreprocessorPool& preprocs) {
   bool needs_sharding = !param_info.preprocs.empty();
   if (!needs_sharding) {
@@ -119,22 +119,22 @@ Tensor BroadcastOrShardAndScatter(Tensor param, const ModelMetadata::Param& para
       << "ValueError: The first dimension of the output shape must be equal to the "
       << "number of shards, but got: " << shape << " and num_shards = " << num_shards;
   param = preprocs.Apply(param, param_info);
-  Tensor result = Tensor::Empty(Shape(shape.begin() + 1, shape.end()), dtype, device);
+  NDArray result = NDArray::Empty(Shape(shape.begin() + 1, shape.end()), dtype, device);
   ScatterFromWorker0(param, /*in_group=*/true, result);
   return result;
 }
 
-Tensor ReceiveBroadcastedOrSharded(Device device, const ModelMetadata::Param& param_info,
+NDArray ReceiveBroadcastedOrSharded(Device device, const ModelMetadata::Param& param_info,
                                    int num_shards) {
   bool needs_sharding = !param_info.preprocs.empty();
-  Tensor result;
+  NDArray result;
   if (needs_sharding) {
     Shape shape = param_info.preprocs.back().out_shape;
     DataType dtype = param_info.preprocs.back().out_dtype;
-    result = Tensor::Empty(Shape(shape.begin() + 1, shape.end()), dtype, device);
+    result = NDArray::Empty(Shape(shape.begin() + 1, shape.end()), dtype, device);
     ScatterFromWorker0(std::nullopt, /*in_group=*/true, result);
   } else {
-    result = Tensor::Empty(param_info.shape, param_info.dtype, device);
+    result = NDArray::Empty(param_info.shape, param_info.dtype, device);
     BroadcastFromWorker0(result, /*in_group=*/true, result);
   }
   return result;
@@ -147,7 +147,7 @@ std::string FormatDuration(DurationType duration) {
   return os.str();
 }
 
-Array<Optional<Tensor>> LoadMultiGPU(const std::string& model_path, Module vm_module,
+Array<Optional<NDArray>> LoadMultiGPU(const std::string& model_path, Module vm_module,
                                      const std::string& model_config_str) {
   DiscoWorker* worker = DiscoWorker::ThreadLocal();
   Device device = worker->default_device;
@@ -157,7 +157,7 @@ Array<Optional<Tensor>> LoadMultiGPU(const std::string& model_path, Module vm_mo
   int group_id = worker_id / group_size;
   LOG(INFO) << "[Worker #" << worker_id << "] Loading model to device: " << device;
   // Step 0. Initialize metadata and paths
-  TensorCacheMetadata tensor_cache_metadata = TensorCacheMetadata::Load(model_path);
+  NDArrayCacheMetadata tensor_cache_metadata = NDArrayCacheMetadata::Load(model_path);
   picojson::value model_config;
   picojson::parse(model_config, model_config_str);
   ModelMetadata model_metadata =
@@ -175,14 +175,14 @@ Array<Optional<Tensor>> LoadMultiGPU(const std::string& model_path, Module vm_mo
     param_name2info[param.name] = param;
   }
   // Step 2. Load, preprocess and shard all the parameters
-  std::unordered_map<std::string, Tensor> sharded_params;
+  std::unordered_map<std::string, NDArray> sharded_params;
   if (worker_id == 0) {
     DurationType time_loading(0);
     DurationType time_preproc(0);
     ProgressBar progress_bar(model_metadata.params.size());
     LOG(INFO) << "Loading parameters...";
-    for (const TensorCacheMetadata::FileRecord& record : tensor_cache_metadata.records) {
-      Array<Tensor> loaded_params;
+    for (const NDArrayCacheMetadata::FileRecord& record : tensor_cache_metadata.records) {
+      Array<NDArray> loaded_params;
       {
         RangeTimer _(&time_loading);
         std::string raw_data_buffer;
@@ -212,7 +212,7 @@ Array<Optional<Tensor>> LoadMultiGPU(const std::string& model_path, Module vm_mo
               << " Loading " << FormatDuration(time_loading) << " Preprocessing "
               << FormatDuration(time_preproc) << ".";
   } else {
-    for (const TensorCacheMetadata::FileRecord& record : tensor_cache_metadata.records) {
+    for (const NDArrayCacheMetadata::FileRecord& record : tensor_cache_metadata.records) {
       for (size_t i = 0; i < record.records.size(); ++i) {
         const std::string& param_name = record.records[i].name;
         const ModelMetadata::Param& param_info = param_name2info.at(param_name);
@@ -225,7 +225,7 @@ Array<Optional<Tensor>> LoadMultiGPU(const std::string& model_path, Module vm_mo
         if (worker_id % group_size == 0) {
           // The worker is the first worker of its worker group (while not the first worker group).
           // Receive the full parameter from the global worker 0.
-          Tensor full_param = RecvFromGlobalWorker0(device, param_info);
+          NDArray full_param = RecvFromGlobalWorker0(device, param_info);
           // Broadcast or shard-scatter this parameter to all workers in its worker group.
           sharded_params[param_name] =
               BroadcastOrShardAndScatter(full_param, param_info, num_shards, preprocs);
@@ -239,16 +239,16 @@ Array<Optional<Tensor>> LoadMultiGPU(const std::string& model_path, Module vm_mo
   }
 
   // Step 3. Reorder the sharded parameters according to the order in model_metadata
-  Array<Optional<Tensor>> shards;
+  Array<Optional<NDArray>> shards;
   shards.reserve(model_metadata.params.size());
   for (const ModelMetadata::Param& param : model_metadata.params) {
     const auto& it = sharded_params.find(param.name);
-    shards.push_back(it == sharded_params.end() ? Optional<Tensor>() : it->second);
+    shards.push_back(it == sharded_params.end() ? Optional<NDArray>() : it->second);
   }
   return shards;
 }
 
-Array<Optional<Tensor>> LoadMultiGPUPresharded(const std::string& model_path, Module vm_module,
+Array<Optional<NDArray>> LoadMultiGPUPresharded(const std::string& model_path, Module vm_module,
                                                const std::string& model_config_str) {
   DiscoWorker* worker = DiscoWorker::ThreadLocal();
   Device device = worker->default_device;
@@ -259,22 +259,22 @@ Array<Optional<Tensor>> LoadMultiGPUPresharded(const std::string& model_path, Mo
   int local_worker_id = worker_id % group_size;
   LOG(INFO) << "[Worker #" << worker_id << "] Loading model to device: " << device;
   // Step 0. Initialize metadata and paths
-  TensorCacheMetadata tensor_cache_metadata = TensorCacheMetadata::Load(model_path);
+  NDArrayCacheMetadata tensor_cache_metadata = NDArrayCacheMetadata::Load(model_path);
   picojson::value model_config;
   picojson::parse(model_config, model_config_str);
   ModelMetadata model_metadata =
       ModelMetadata::FromModule(vm_module, model_config.get<picojson::object>());
 
   std::unordered_map<std::string, ParamInfo> param_info_map;
-  for (const TensorCacheMetadata::FileRecord& file_record : tensor_cache_metadata.records) {
-    for (const TensorCacheMetadata::FileRecord::ParamRecord& param_record : file_record.records) {
+  for (const NDArrayCacheMetadata::FileRecord& file_record : tensor_cache_metadata.records) {
+    for (const NDArrayCacheMetadata::FileRecord::ParamRecord& param_record : file_record.records) {
       const std::string& param_name = param_record.name;
       param_info_map[param_name] = ParamInfo{&file_record, &param_record};
     }
   }
 
-  Array<Optional<Tensor>> params;
-  const TensorCacheMetadata::FileRecord* current_file_;
+  Array<Optional<NDArray>> params;
+  const NDArrayCacheMetadata::FileRecord* current_file_;
   std::string current_file_stream_;
   params.reserve(model_metadata.params.size());
   DurationType time_loading(0);
@@ -283,7 +283,7 @@ Array<Optional<Tensor>> LoadMultiGPUPresharded(const std::string& model_path, Mo
     if (std::find(param.pipeline_stages.begin(), param.pipeline_stages.end(), group_id) ==
         param.pipeline_stages.end()) {
       // This worker group doesn't need to hold a copy of this parameter.
-      params.push_back(Optional<Tensor>());
+      params.push_back(Optional<NDArray>());
       continue;
     }
     bool needs_sharding = !param.preprocs.empty();
@@ -295,8 +295,8 @@ Array<Optional<Tensor>> LoadMultiGPUPresharded(const std::string& model_path, Mo
     auto it = param_info_map.find(param_name);
     CHECK(it != param_info_map.end()) << "ValueError: Cannot find parameter: " << param_name;
     const ParamInfo& param_info = (*it).second;
-    const TensorCacheMetadata::FileRecord::ParamRecord* param_record = param_info.param;
-    const TensorCacheMetadata::FileRecord* file_record = param_info.file;
+    const NDArrayCacheMetadata::FileRecord::ParamRecord* param_record = param_info.param;
+    const NDArrayCacheMetadata::FileRecord* file_record = param_info.file;
 
     if (file_record != current_file_) {
       current_file_ = file_record;

@@ -2,7 +2,7 @@
 
 #include <picojson.h>
 #include <tvm/ffi/function.h>
-#include <tvm/ffi/reflection/registry.h>
+#include "../serve/tvm_ffi_reflection_compat.h"
 #include <tvm/runtime/module.h>
 
 #include <filesystem>

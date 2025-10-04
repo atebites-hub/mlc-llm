@@ -8,7 +8,7 @@
 #include <picojson.h>
 #include <tokenizers_cpp.h>
 #include <tvm/ffi/function.h>
-#include <tvm/ffi/reflection/registry.h>
+#include "../serve/tvm_ffi_reflection_compat.h"
 #include <tvm/runtime/int_tuple.h>
 #include <tvm/runtime/logging.h>
 

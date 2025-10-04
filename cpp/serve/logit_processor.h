@@ -48,7 +48,7 @@ class LogitProcessorObj : public Object {
    * state is not updated with the draft tokens).
    */
   virtual void InplaceUpdateLogits(
-      Tensor logits, const Array<GenerationConfig>& generation_cfg,
+      NDArray logits, const Array<GenerationConfig>& generation_cfg,
       const Array<RequestModelState>& mstates, const Array<String>& request_ids,
       const std::vector<int>* cum_num_token = nullptr,
       const Array<RequestModelState>* draft_mstates = nullptr,
@@ -63,7 +63,7 @@ class LogitProcessorObj : public Object {
    * If the pointer is nullptr, it means each sequence has only one token.
    * \return The batch of computed probability distributions on GPU.
    */
-  virtual Tensor ComputeProbsFromLogits(Tensor logits,
+  virtual NDArray ComputeProbsFromLogits(NDArray logits,
                                         const Array<GenerationConfig>& generation_cfg,
                                         const Array<String>& request_ids,
                                         const std::vector<int>* cum_num_token = nullptr) = 0;

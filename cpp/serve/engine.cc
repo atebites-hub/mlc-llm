@@ -7,7 +7,7 @@
 
 #include <dlpack/dlpack.h>
 #include <tvm/ffi/function.h>
-#include <tvm/ffi/reflection/registry.h>
+#include "../serve/tvm_ffi_reflection_compat.h"
 #include <tvm/runtime/logging.h>
 #include <tvm/runtime/memory/memory_manager.h>
 #include <tvm/runtime/module.h>
@@ -461,7 +461,7 @@ class EngineImpl : public Engine {
                            engine_config->max_total_sequence_length,
                            engine_config->prefill_chunk_size, engine_config->max_history_size);
       n->model_workspaces_.push_back(
-          ModelWorkspace{model->AllocEmbeddingTensor(), model->AllocHiddenStatesTensor()});
+          ModelWorkspace{model->AllocEmbeddingNDArray(), model->AllocHiddenStatesNDArray()});
     }
     // - Initialize tokenizer and grammar
     n->tokenizer_ = Tokenizer::FromPath(engine_config->model, GetTokenizerInfo(model_configs[0]));

@@ -5,7 +5,7 @@
 #include "radix_tree.h"
 
 #include <tvm/ffi/function.h>
-#include <tvm/ffi/reflection/registry.h>
+#include "../serve/tvm_ffi_reflection_compat.h"
 #include <tvm/runtime/logging.h>
 
 namespace mlc {

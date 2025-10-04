@@ -45,7 +45,7 @@ class SamplerObj : public Object {
    * \return The renormalized probability distributions, residing on device
    * if the sampler is GPU sampler, or on host if the sampler is CPU sampler.
    */
-  virtual Tensor BatchRenormalizeProbsByTopP(Tensor probs_on_device,                  //
+  virtual NDArray BatchRenormalizeProbsByTopP(NDArray probs_on_device,                  //
                                              const std::vector<int>& sample_indices,  //
                                              const Array<String>& request_ids,        //
                                              const Array<GenerationConfig>& generation_cfg) = 0;
@@ -65,7 +65,7 @@ class SamplerObj : public Object {
    * and other probability info.
    */
   virtual std::vector<SampleResult> BatchSampleTokensWithProbBeforeTopP(
-      Tensor probs_on_device,                         //
+      NDArray probs_on_device,                         //
       const std::vector<int>& sample_indices,         //
       const Array<String>& request_ids,               //
       const Array<GenerationConfig>& generation_cfg,  //
@@ -87,7 +87,7 @@ class SamplerObj : public Object {
    * and other probability info.
    */
   virtual std::vector<SampleResult> BatchSampleTokensWithProbAfterTopP(
-      Tensor probs,                                   //
+      NDArray probs,                                   //
       const std::vector<int>& sample_indices,         //
       const Array<String>& request_ids,               //
       const Array<GenerationConfig>& generation_cfg,  //
@@ -115,10 +115,10 @@ class SamplerObj : public Object {
    */
   virtual std::pair<std::vector<std::vector<SampleResult>>, std::vector<int>>
   BatchVerifyDraftTokensWithProbAfterTopP(
-      Tensor probs, const Array<String>& request_ids, const std::vector<int>& cum_verify_lengths,
+      NDArray probs, const Array<String>& request_ids, const std::vector<int>& cum_verify_lengths,
       const Array<GenerationConfig>& generation_cfg, const std::vector<RandomGenerator*>& rngs,
       const std::vector<std::vector<SampleResult>>& draft_output_tokens,
-      const std::vector<int64_t>& token_tree_parent_ptr, Tensor draft_probs_on_device) = 0;
+      const std::vector<int64_t>& token_tree_parent_ptr, NDArray draft_probs_on_device) = 0;
 
   static constexpr const bool _type_has_method_sequal_reduce = false;
   static constexpr const bool _type_has_method_shash_reduce = false;

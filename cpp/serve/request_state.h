@@ -8,7 +8,7 @@
 
 #include <tvm/ffi/container/array.h>
 #include <tvm/runtime/object.h>
-#include <tvm/runtime/tensor.h>
+#include <tvm/runtime/ndarray.h>
 #include <xgrammar/xgrammar.h>
 
 #include <optional>
@@ -98,11 +98,11 @@ class RequestModelStateNode : public Object {
    */
   bool RequireNextTokenBitmask();
   /*!
-   * \brief Find the next token bitmask and store it in the given DLTensor.
-   * \param bitmask The DLTensor to store the next token bitmask. The bitmask should be a tensor
+   * \brief Find the next token bitmask and store it in the given DLNDArray.
+   * \param bitmask The DLNDArray to store the next token bitmask. The bitmask should be a tensor
    * with dtype uint32_t and shape (ceildiv(vocab_size, 32),).
    */
-  void GetNextTokenBitmask(DLTensor* bitmask);
+  void GetNextTokenBitmask(DLNDArray* bitmask);
   /*! \brief Commit a new token into committed_tokens. Does not effect the kv cache. Update
    * appeared_token_ids and the grammar state. */
   void CommitToken(SampleResult sampled_token);

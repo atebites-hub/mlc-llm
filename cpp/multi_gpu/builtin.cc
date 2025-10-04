@@ -8,11 +8,11 @@
 #include <tvm/ffi/container/shape.h>
 #include <tvm/ffi/function.h>
 #include <tvm/ffi/optional.h>
-#include <tvm/ffi/reflection/registry.h>
-#include <tvm/node/cast.h>
+#include "../serve/tvm_ffi_reflection_compat.h"
+#include <tvm/ffi/cast.h>
 #include <tvm/runtime/disco/builtin.h>
 #include <tvm/runtime/disco/disco_worker.h>
-#include <tvm/runtime/tensor.h>
+#include <tvm/runtime/ndarray.h>
 #include <tvm/runtime/vm/vm.h>
 
 namespace mlc {
@@ -55,7 +55,7 @@ ObjectRef DispatchFunctionByGroup(tvm::ffi::AnyView vm_arg,
   return rv.cast<ObjectRef>();
 }
 
-ObjectRef SendFromLastGroupToWorker0(Tensor send, Optional<Tensor> recv, Shape shape,
+ObjectRef SendFromLastGroupToWorker0(NDArray send, Optional<NDArray> recv, Shape shape,
                                      DataType dtype) {
   DiscoWorker* worker = DiscoWorker::ThreadLocal();
   int worker_id = worker->worker_id;
@@ -64,18 +64,18 @@ ObjectRef SendFromLastGroupToWorker0(Tensor send, Optional<Tensor> recv, Shape s
   CHECK_NE(world_size, group_size) << "Cannot perform when there is only one group.";
   int sender_id = world_size - group_size;
   if (worker_id == 0) {
-    CHECK(recv.defined()) << "The receive Tensor is undefined for worker 0.";
-    Tensor recv_arr = recv.value().CreateView(shape, dtype);
+    CHECK(recv.defined()) << "The receive NDArray is undefined for worker 0.";
+    NDArray recv_arr = recv.value().CreateView(shape, dtype);
     RecvFromWorker(recv_arr, sender_id);
     return recv_arr;
   } else if (worker_id == sender_id) {
     CHECK_EQ(DataType(send->dtype), dtype)
-        << "The src Tensor has mismatched dtype than the expected dtype.";
+        << "The src NDArray has mismatched dtype than the expected dtype.";
     CHECK_EQ(send->ndim, shape.size())
-        << "The src Tensor has mismatched shape than the expected shape.";
+        << "The src NDArray has mismatched shape than the expected shape.";
     for (int i = 0; i < send->ndim; ++i) {
       CHECK_EQ(send->shape[i], shape[i])
-          << "The src Tensor has mismatched shape than the expected shape.";
+          << "The src NDArray has mismatched shape than the expected shape.";
     }
     SendToWorker(send, /*receiver_id=*/0);
     return recv;

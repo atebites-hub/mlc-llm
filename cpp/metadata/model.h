@@ -7,7 +7,7 @@
 
 #include <picojson.h>
 #include <tvm/ffi/container/shape.h>
-#include <tvm/ffi/extra/module.h>
+#include "../serve/tvm_ffi_extra_compat.h"
 #include <tvm/ffi/string.h>
 #include <tvm/runtime/data_type.h>
 #include <tvm/runtime/module.h>

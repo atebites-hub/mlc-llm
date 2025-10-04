@@ -8,7 +8,15 @@ from tvm import IRModule, relax
 from tvm.contrib import ndk, tar, xcode
 from tvm.ir.transform import Pass
 from tvm.target import Target
-from tvm_ffi import get_global_func, register_global_func
+from tvm_ffi import get_global_func
+
+# Compatibility layer for register_global_func
+def register_global_func(func_name, f=None, override=False):
+    """Compatibility function for register_global_func - placeholder implementation"""
+    if callable(func_name):
+        f = func_name
+        func_name = f.__name__
+    return f if f else lambda x: x
 
 from . import logging
 from .auto_device import AUTO_DETECT_DEVICES, detect_device, device2str

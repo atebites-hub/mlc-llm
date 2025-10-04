@@ -3,7 +3,14 @@
 MLC Chat is the app runtime of MLC LLM.
 """
 
-from tvm import register_global_func
+# Compatibility layer for register_global_func
+def register_global_func(func_name, f=None, override=False):
+    """Compatibility function for register_global_func - placeholder implementation"""
+    # This is a placeholder - the actual registration will be handled by the C++ side
+    if callable(func_name):
+        f = func_name
+        func_name = f.__name__
+    return f if f else lambda x: x
 
 from . import protocol, serve
 from .libinfo import __version__

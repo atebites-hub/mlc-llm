@@ -9,10 +9,11 @@
 #include <tvm/ffi/container/shape.h>
 #include <tvm/ffi/optional.h>
 #include <tvm/ffi/string.h>
-#include <tvm/node/cast.h>
+#include <tvm/ffi/cast.h>
 #include <tvm/runtime/int_tuple.h>
 #include <tvm/runtime/object.h>
-#include <tvm/runtime/tensor.h>
+#include <tvm/runtime/ndarray.h>
+#include "tvm_ffi_compat.h"
 
 #include <atomic>
 #include <optional>
@@ -114,7 +115,7 @@ class TokenData : public Data {
 class ImageDataNode : public DataNode {
  public:
   /*! \brief The pixel values. */
-  Tensor image;
+  NDArray image;
   int embed_size;
 
   int GetLength() const final;
@@ -125,7 +126,7 @@ class ImageDataNode : public DataNode {
 
 class ImageData : public Data {
  public:
-  explicit ImageData(Tensor image, int embed_size);
+  explicit ImageData(NDArray image, int embed_size);
 
   TVM_FFI_DEFINE_OBJECT_REF_METHODS_NULLABLE(ImageData, Data, ImageDataNode);
 };

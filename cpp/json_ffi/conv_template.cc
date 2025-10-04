@@ -314,7 +314,7 @@ Result<std::vector<Data>> CreatePrompt(const Conversation& conv,
                                        // should be a map, with a "url" key containing the URL, but
                                        // we are just assuming this as the URL for now
             std::string base64_image = image_url.substr(image_url.find(",") + 1);
-            Result<Tensor> image_data_res = LoadImageFromBase64(base64_image);
+            Result<NDArray> image_data_res = LoadImageFromBase64(base64_image);
             if (image_data_res.IsErr()) {
               return TResult::Error(image_data_res.UnwrapErr());
             }
@@ -326,9 +326,9 @@ Result<std::vector<Data>> CreatePrompt(const Conversation& conv,
 
             int embed_size = (image_size * image_size) / (patch_size * patch_size);
 
-            Tensor image_data = image_data_res.Unwrap();
+            NDArray image_data = image_data_res.Unwrap();
             std::vector<int64_t> new_shape = {1, image_size, image_size, 3};
-            Tensor image_tensor = image_data.CreateView(new_shape, image_data.DataType());
+            NDArray image_tensor = image_data.CreateView(new_shape, image_data.DataType());
             // TODO: Not sure if commenting will affect other functions. But
             // python part will do clip preprocessing. auto image_tensor =
             // ClipPreprocessor(image_data_res.Unwrap(), image_size, device);

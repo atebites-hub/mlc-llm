@@ -51,8 +51,8 @@ size_t Base64DecodedSize(const std::string& base64_str) {
   return 3 * len / 4 - padding;
 }
 
-Result<Tensor> LoadImageFromBase64(const std::string& base64_str) {
-  using TResult = Result<Tensor>;
+Result<NDArray> LoadImageFromBase64(const std::string& base64_str) {
+  using TResult = Result<NDArray>;
   MemoryBufferStream stream(base64_str.c_str(), base64_str.size());
   tvm::support::Base64InStream base64_stream(&stream);
   size_t decoded_size = Base64DecodedSize(base64_str);
@@ -65,13 +65,13 @@ Result<Tensor> LoadImageFromBase64(const std::string& base64_str) {
   if (!image_data) {
     return TResult::Error(stbi_failure_reason());
   }
-  auto image_tensor = Tensor::Empty({height, width, 3}, {kDLUInt, 8, 1}, {kDLCPU, 0});
+  auto image_tensor = NDArray::Empty({height, width, 3}, {kDLUInt, 8, 1}, {kDLCPU, 0});
   image_tensor.CopyFromBytes((void*)image_data, width * height * 3);
   stbi_image_free(image_data);
   return TResult::Ok(image_tensor);
 }
 
-Tensor ClipPreprocessor(Tensor image_data, int target_size, DLDevice device) {
+NDArray ClipPreprocessor(NDArray image_data, int target_size, DLDevice device) {
   int height = image_data->shape[0];
   int width = image_data->shape[1];
   // Resize
@@ -143,8 +143,8 @@ Tensor ClipPreprocessor(Tensor image_data, int target_size, DLDevice device) {
     }
   }
 
-  // Create Tensor
-  auto image_tensor = Tensor::Empty({1, 3, target_size, target_size}, {kDLFloat, 32, 1}, device);
+  // Create NDArray
+  auto image_tensor = NDArray::Empty({1, 3, target_size, target_size}, {kDLFloat, 32, 1}, device);
   image_tensor.CopyFromBytes((void*)image_data_channel_first.data(),
                              target_size * target_size * 3 * sizeof(float));
 
